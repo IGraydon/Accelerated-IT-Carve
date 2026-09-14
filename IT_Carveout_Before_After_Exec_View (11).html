@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>IT Carve-Out — Before vs After Additional Resource</title>
+<style>
+  :root{
+    --ink:#1F2937; --muted:#6B7280; --line:#E5E7EB; --panel:#F8F9FB;
+    --done:#5DCAA5; --progress:#FAC775; --planned:#B4B2A9; --risk:#F0997B;
+    --accentRed:#E24B4A; --accentBlue:#378ADD;
+  }
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;color:var(--ink);margin:0;background:#fff;padding:32px 40px 60px}
+  h1{font-size:20px;font-weight:700;margin:0 0 4px;color:#1F4E78}
+  .subtitle{font-size:12px;color:var(--muted);margin:0 0 24px;font-style:italic}
+  h2.section{font-size:14px;font-weight:700;color:#1F4E78;border-bottom:1px solid var(--line);padding-bottom:6px;margin:36px 0 14px}
+
+  /* Gantt */
+  .gc{font-size:12px}
+  .gc .head{display:flex;gap:16px;padding:0 0 4px}
+  .gc .head .spacer{width:150px;flex:none}
+  .gc .head .panel-title{flex:1;font-size:13px;font-weight:700;text-align:center;color:#1F4E78}
+  .gc .months{display:flex;gap:16px;margin-bottom:6px}
+  .gc .months .spacer{width:150px;flex:none}
+  .gc .months .m-track{flex:1;position:relative;height:16px}
+  .gc .months .m-track span{position:absolute;top:0;font-size:9.5px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+  .gc .row{display:flex;gap:16px;align-items:center;margin-bottom:6px}
+  .gc .label{width:150px;flex:none;font-size:12px;color:var(--ink);padding-right:6px}
+  .gc .label.sub{font-size:11px;font-style:italic;color:var(--muted);padding-left:8px}
+  .gc .track{flex:1;position:relative;height:22px;background-color:var(--panel);background-image:repeating-linear-gradient(to right, var(--line) 0, var(--line) 1px, transparent 1px, transparent calc(100%/9));border-radius:4px;border:1px solid var(--line)}
+  .gc .seg{position:absolute;top:3px;height:16px;border-radius:3px}
+  .gc .seg-done{background:var(--done)}
+  .gc .seg-progress{background:var(--progress)}
+  .gc .seg-planned{background:var(--planned)}
+  .gc .seg-risk{background:var(--risk)}
+  .gc .seg-hypercare{background:#8E7CC3}
+  .gc .tsa-line{position:absolute;top:-3px;bottom:-3px;width:0;border-left:2px dashed var(--accentRed)}
+  .gc .tsa-line.accel{border-left:2px dashed var(--accentBlue)}
+  .gc .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:11px;color:var(--muted)}
+  .gc .legend .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+  /* Editable table */
+  table.res{width:100%;border-collapse:collapse;font-size:13px}
+  table.res th{background:#1F4E78;color:#fff;text-align:left;padding:8px 10px;font-size:12px}
+  table.res td{border:1px solid var(--line);padding:8px 10px;vertical-align:top}
+  table.res tr:nth-child(even) td{background:#FAFBFC}
+  table.res td[contenteditable="true"]{outline:none;cursor:text}
+  table.res td[contenteditable="true"]:focus{background:#FFF9E6;box-shadow:inset 0 0 0 1px #F9A825}
+  td.qty{text-align:center}
+  .qty-input{width:52px;text-align:center;font-size:13px;font-family:Arial,Helvetica,sans-serif;padding:5px 4px;border-radius:3px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  td.cost{text-align:left}
+  .cost-input{width:100%;font-size:13px;font-family:Arial,Helvetica,sans-serif;padding:5px 6px;border-radius:3px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  tfoot .total-row td{font-weight:700;background:#EEF2F6;text-align:center;padding:8px 10px;border:1px solid var(--line)}
+  tfoot .total-row td:first-child{text-align:left}
+  .totals-summary{display:flex;gap:16px}
+  .total-box{flex:1;border:1px solid var(--line);border-radius:6px;padding:14px 16px;background:#FAFBFC;text-align:center}
+  .total-box.grand{background:#1F4E78;border-color:#1F4E78}
+  .total-box .total-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .total-box.grand .total-label{color:#CFE0EE}
+  .total-box .total-value{font-size:22px;font-weight:700;color:#1F4E78}
+  .total-box.grand .total-value{color:#fff}
+  .save-btn{position:fixed;top:16px;right:16px;background:#1F4E78;color:#fff;border:none;padding:10px 18px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);z-index:100}
+  .save-btn:hover{background:#173A5A}
+  td.src{padding:6px 8px}
+  .src-group{display:flex;flex-direction:column;gap:4px}
+  .src-pill{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 6px;border-radius:3px;border:1px solid var(--line);cursor:pointer;background:#fff;color:var(--muted);user-select:none}
+  .src-pill input{margin:0;cursor:pointer}
+  .src-pill.checked.internal{background:#EDFBF6;border-color:#5DCAA5;color:var(--ink)}
+  .src-pill.checked.external{background:#EAF3FC;border-color:#378ADD;color:var(--ink)}
+  .src-pill.checked.sourcing{background:#FDF1EC;border-color:#F0997B;color:var(--ink)}
+  td.actions{text-align:center;width:40px;background:#fff !important;border:none}
+  .rm-btn{background:none;border:none;color:#A32D2D;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px}
+  .rm-btn:hover{color:#791F1F}
+  .toolbar{margin-top:12px;display:flex;gap:10px;align-items:center}
+  .add-btn{background:#1F4E78;color:#fff;border:none;padding:8px 14px;border-radius:4px;font-size:13px;cursor:pointer}
+  .add-btn:hover{background:#173A5A}
+  .total-row td{font-weight:700;background:#EEF2F6 !important}
+  .note{font-size:11px;color:var(--muted);margin-top:10px;font-style:italic}
+  @media print{
+    .toolbar, .rm-btn, .save-btn{display:none}
+    body{padding:20px}
+  }
+</style>
+</head>
+<body>
+
+<button class="save-btn" onclick="saveHtml()">💾 Save changes to file</button>
+
+<h1>IT Carve-Out — plan before and after additional resource</h1>
+<p class="subtitle">Seven key workstreams, current baseline vs accelerated plan with surge resource.</p>
+
+<h2 class="section">Schedule comparison</h2>
+<div class="gc">
+<div class="head">
+<div class="spacer"></div>
+<div class="panel-title">Current plan (baseline)</div>
+<div class="panel-title">Accelerated plan (with surge resource)</div>
+</div>
+<div class="months">
+<div class="spacer"></div>
+<div class="m-track"><span style="left:0.0%">Jun</span><span style="left:10.99%">Jul</span><span style="left:22.34%">Aug</span><span style="left:33.7%">Sep</span><span style="left:44.69%">Oct</span><span style="left:56.04%">Nov</span><span style="left:67.03%">Dec</span><span style="left:78.39%">Jan-27</span><span style="left:89.74%">Feb</span></div>
+<div class="m-track"><span style="left:0.0%">Jun</span><span style="left:10.99%">Jul</span><span style="left:22.34%">Aug</span><span style="left:33.7%">Sep</span><span style="left:44.69%">Oct</span><span style="left:56.04%">Nov</span><span style="left:67.03%">Dec</span><span style="left:78.39%">Jan-27</span><span style="left:89.74%">Feb</span></div>
+</div>
+<div class="row">
+<div class="label t">Programme (Overall)</div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:56.41%" title="Build: 2026-05-18 to 2026-11-02"></div><div class="seg seg-progress" style="left:0.0%;width:79.49%" title="Migrate: 2026-06-01 to 2027-01-04"></div><div class="seg seg-hypercare" style="left:79.49%;width:17.95%" title="Hypercare: 2027-01-04 to 2027-02-22"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:42.49%" title="Build: 2026-05-18 to 2026-09-25"></div><div class="seg seg-planned" style="left:33.7%;width:17.95%" title="Migrate: 2026-09-01 to 2026-10-20"></div><div class="seg seg-planned" style="left:56.41%;width:6.59%" title="Stabilise: 2026-11-02 to 2026-11-20"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">EUC</div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:19.41%" title="Discovery: 2026-01-26 to 2026-07-24"></div><div class="seg seg-progress" style="left:0.0%;width:21.98%" title="Design: 2026-02-02 to 2026-07-31"></div><div class="seg seg-progress" style="left:0.0%;width:56.41%" title="Build: 2026-02-02 to 2026-11-02"></div><div class="seg seg-done" style="left:0.0%;width:39.93%" title="Migrate: 2026-03-02 to 2026-09-18"></div><div class="seg seg-planned" style="left:64.84%;width:12.82%" title="Cutover: 2026-11-25 to 2026-12-30"></div><div class="seg seg-hypercare" style="left:79.49%;width:17.95%" title="Hypercare: 2027-01-04 to 2027-02-22"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:19.41%" title="Discovery: 2026-01-26 to 2026-07-24"></div><div class="seg seg-progress" style="left:0.0%;width:21.98%" title="Design: 2026-02-02 to 2026-07-31"></div><div class="seg seg-progress" style="left:0.0%;width:42.49%" title="Build: 2026-02-02 to 2026-09-25"></div><div class="seg seg-done" style="left:0.0%;width:39.93%" title="Migrate: 2026-03-02 to 2026-09-18"></div><div class="seg seg-planned" style="left:46.15%;width:4.03%" title="Cutover: 2026-10-05 to 2026-10-16"></div><div class="seg seg-planned" style="left:51.28%;width:6.59%" title="Stabilise: 2026-10-19 to 2026-11-06"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ M365 migration</div>
+<div class="track"><div class="seg seg-planned" style="left:57.14%;width:20.51%" title="M365 migration (tenant currently in US - data residency question): 2026-11-04 to 2026-12-30 - 8-week project, pushed to run right up to Cutover"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:29.67%;width:20.51%" title="M365 migration: 2026-08-21 to 2026-10-16 - 8-week project, still runs right up to Cutover even compressed"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ Confluence migration</div>
+<div class="track"><div class="seg seg-planned" style="left:62.27%;width:15.38%" title="Confluence migration (3rd-party plugins/macros don't auto-migrate): 2026-11-18 to 2026-12-30 - 6-week project, pushed to run right up to Cutover"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:34.8%;width:15.38%" title="Confluence migration: 2026-09-04 to 2026-10-16 - 6-week project, still runs right up to Cutover even compressed"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ Zscaler deployment</div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:44.32%" title="Zscaler ZPA deployment: 2026-06-01 to 2026-09-30 - already well progressed (Wave 1 access live, GDPR testing done); minor S&amp;P/vendor documentation items outstanding"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:44.32%" title="Zscaler ZPA deployment: 2026-06-01 to 2026-09-30 - unchanged, already on track and does not need compression"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">Service Desk</div>
+<div class="track"><div class="seg seg-done" style="left:0.0%;width:11.72%" title="Discovery: 2026-03-09 to 2026-07-03"></div><div class="seg seg-done" style="left:0.0%;width:14.29%" title="Design: 2026-04-13 to 2026-07-10"></div><div class="seg seg-progress" style="left:0.0%;width:39.93%" title="Build: 2026-05-18 to 2026-09-18"></div><div class="seg seg-planned" style="left:2.93%;width:3.3%" title="Migrate: 2026-06-09 to 2026-06-18"></div><div class="seg seg-planned" style="left:7.69%;width:0.6%" title="Cutover: 2026-06-22 to 2026-06-22"></div><div class="seg seg-hypercare" style="left:79.49%;width:17.95%" title="Hypercare: 2027-01-04 to 2027-02-22"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-done" style="left:0.0%;width:11.72%" title="Discovery: 2026-03-09 to 2026-07-03"></div><div class="seg seg-done" style="left:0.0%;width:14.29%" title="Design: 2026-04-13 to 2026-07-10"></div><div class="seg seg-progress" style="left:0.0%;width:42.49%" title="Build: 2026-05-18 to 2026-09-25"></div><div class="seg seg-planned" style="left:33.7%;width:10.62%" title="Migrate: 2026-09-01 to 2026-09-30"></div><div class="seg seg-planned" style="left:46.15%;width:1.47%" title="Cutover: 2026-10-05 to 2026-10-09"></div><div class="seg seg-planned" style="left:48.72%;width:4.03%" title="Stabilise: 2026-10-12 to 2026-10-23"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">Infrastructure</div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:0.6%" title="Discovery: 2026-03-09 to 2026-06-01"></div><div class="seg seg-progress" style="left:0.0%;width:0.6%" title="Design: 2026-04-01 to 2026-06-01"></div><div class="seg seg-planned" style="left:2.56%;width:25.64%" title="Build: 2026-06-08 to 2026-08-17"></div><div class="seg seg-risk" style="left:0.0%;width:79.49%" title="Migrate: 2026-06-01 to 2027-01-04"></div><div class="seg seg-risk" style="left:72.53%;width:0.6%" title="Cutover: 2026-12-16 to 2026-12-16"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-progress" style="left:0.0%;width:0.6%" title="Discovery: 2026-03-09 to 2026-06-01"></div><div class="seg seg-progress" style="left:0.0%;width:0.6%" title="Design: 2026-04-01 to 2026-06-01"></div><div class="seg seg-planned" style="left:2.56%;width:37.36%" title="Build: 2026-06-08 to 2026-09-18"></div><div class="seg seg-planned" style="left:33.7%;width:16.48%" title="Migrate: 2026-09-01 to 2026-10-16"></div><div class="seg seg-planned" style="left:51.28%;width:1.47%" title="Cutover: 2026-10-19 to 2026-10-23"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ Foglight (RDS monitoring)</div>
+<div class="track"><div class="seg seg-planned" style="left:52.01%;width:20.51%" title="Foglight deployment - RDS monitoring: 2026-10-21 to 2026-12-16 - 8-week project, pushed to run right up to Cutover"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:32.23%;width:20.51%" title="Foglight deployment - RDS monitoring: 2026-08-28 to 2026-10-23 - 8-week project, still runs right up to Cutover even compressed"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ Grafana (EC2 Windows estate, ~1,800 hosts)</div>
+<div class="track"><div class="seg seg-planned" style="left:49.45%;width:23.08%" title="Grafana deployment - EC2 Windows estate (~1,800 instances): 2026-10-14 to 2026-12-16 - 9-week project, pushed to run right up to Cutover"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:29.67%;width:23.08%" title="Grafana deployment - EC2 Windows estate (~1,800 instances): 2026-08-21 to 2026-10-23 - 9-week project, still runs right up to Cutover even compressed"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">IAM / InfoSec</div>
+<div class="track"><div class="seg seg-done" style="left:0.0%;width:8.42%" title="Discovery: 2026-03-09 to 2026-06-24"></div><div class="seg seg-planned" style="left:0.0%;width:7.69%" title="Design: 2026-05-01 to 2026-06-22"></div><div class="seg seg-progress" style="left:0.0%;width:66.67%" title="Build: 2026-05-11 to 2026-11-30"></div><div class="seg seg-planned" style="left:43.59%;width:23.08%" title="Migrate (EDR/VMDR/SIEM deployment): 2026-09-28 to 2026-11-30 - per original plan"></div><div class="seg seg-risk" style="left:72.53%;width:0.6%" title="Cutover: timing to be confirmed"></div><div class="seg seg-hypercare" style="left:79.49%;width:17.95%" title="Hypercare: timing to be confirmed"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-done" style="left:0.0%;width:8.42%" title="Discovery: 2026-03-09 to 2026-06-24"></div><div class="seg seg-planned" style="left:0.0%;width:7.69%" title="Design: 2026-05-01 to 2026-06-22"></div><div class="seg seg-progress" style="left:0.0%;width:42.49%" title="Build: 2026-05-11 to 2026-09-25"></div><div class="seg seg-planned" style="left:33.7%;width:17.95%" title="Migrate: 2026-09-01 to 2026-10-20"></div><div class="seg seg-planned" style="left:52.75%;width:1.47%" title="Cutover: 2026-10-23 to 2026-10-27"></div><div class="seg seg-planned" style="left:54.58%;width:5.86%" title="Stabilise: 2026-10-28 to 2026-11-13"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t sub">↳ EDR/VMDR/SIEM deployment</div>
+<div class="track"><div class="seg seg-planned" style="left:43.59%;width:23.08%" title="EDR (CrowdStrike) / VMDR (Qualys) / SIEM (Google SecOps) deployment: 2026-09-28 to 2026-11-30 - per original plan"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:43.59%;width:17.95%" title="EDR/VMDR/SIEM deployment: 2026-09-28 to 2026-11-16 - 2 weeks shorter with added internal resource"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">Software Migration</div>
+<div class="track"><div class="seg seg-done" style="left:5.13%;width:21.61%" title="Discovery: 2026-06-15 to 2026-08-13"></div><div class="seg seg-done" style="left:14.29%;width:15.02%" title="Design: 2026-07-10 to 2026-08-20"></div><div class="seg seg-progress" style="left:22.34%;width:24.18%" title="Build: 2026-08-01 to 2026-10-06"></div><div class="seg seg-progress" style="left:28.94%;width:30.4%" title="Migrate: 2026-08-19 to 2026-11-10"></div><div class="seg seg-planned" style="left:43.59%;width:16.12%" title="Cutover: 2026-09-28 to 2026-11-11"></div><div class="seg seg-planned" style="left:43.96%;width:20.88%" title="Stabilise: 2026-09-29 to 2026-11-25"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-done" style="left:5.13%;width:21.61%" title="Discovery: 2026-06-15 to 2026-08-13"></div><div class="seg seg-done" style="left:14.29%;width:15.02%" title="Design: 2026-07-10 to 2026-08-20"></div><div class="seg seg-progress" style="left:22.34%;width:17.58%" title="Build: 2026-08-01 to 2026-09-18"></div><div class="seg seg-progress" style="left:28.94%;width:18.68%" title="Migrate: 2026-08-19 to 2026-10-09"></div><div class="seg seg-planned" style="left:48.72%;width:1.47%" title="Cutover: 2026-10-12 to 2026-10-16"></div><div class="seg seg-planned" style="left:51.28%;width:4.03%" title="Stabilise: 2026-10-19 to 2026-10-30"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="row">
+<div class="label t">Product</div>
+<div class="track"><div class="seg seg-planned" style="left:0.0%;width:21.98%" title="Design: 2026-03-03 to 2026-07-31"></div><div class="seg seg-planned" style="left:0.0%;width:9.16%" title="Build: 2026-03-03 to 2026-06-26"></div><div class="seg seg-risk" style="left:0.0%;width:79.49%" title="Migrate: 2026-06-01 to 2027-01-04"></div><div class="seg seg-risk" style="left:72.53%;width:0.6%" title="Cutover: 2026-12-16 to 2026-12-16"></div><div class="tsa-line" style="left:72.53%"></div></div>
+<div class="track"><div class="seg seg-planned" style="left:0.0%;width:21.98%" title="Design: 2026-03-03 to 2026-07-31"></div><div class="seg seg-planned" style="left:0.0%;width:39.93%" title="Build: 2026-03-03 to 2026-09-18"></div><div class="seg seg-planned" style="left:33.7%;width:16.48%" title="Migrate: 2026-09-01 to 2026-10-16"></div><div class="seg seg-planned" style="left:51.28%;width:1.47%" title="Cutover: 2026-10-19 to 2026-10-23"></div><div class="tsa-line accel" style="left:55.31%"></div></div>
+</div>
+<div class="legend">
+<span><span class="sw" style="background:var(--done)"></span>Complete / near complete</span>
+<span><span class="sw" style="background:var(--progress)"></span>In progress</span>
+<span><span class="sw" style="background:var(--planned)"></span>Planned, not started</span>
+<span><span class="sw" style="background:var(--risk)"></span>Timing to be confirmed</span>
+<span><span class="sw" style="background:#8E7CC3"></span>Hypercare</span>
+<span><span class="sw" style="background:var(--accentRed)"></span>-- TSA exit (16 Dec 26)</span>
+<span><span class="sw" style="background:var(--accentBlue)"></span>-- TSA exit, accelerated (30 Oct 26)</span>
+</div>
+</div>
+
+<h2 class="section">Extra resource required — editable</h2>
+<table class="res" id="resTable">
+<thead>
+<tr>
+<th style="width:13%">Workstream</th>
+<th style="width:17%">Skillset</th>
+<th style="width:9%">Duration</th>
+<th style="width:9%">Current Source</th>
+<th style="width:7%">Internal Qty</th>
+<th style="width:8%">Need Sourcing Qty</th>
+<th style="width:9%">Estimated Cost</th>
+<th style="width:24%">Dependency / notes</th>
+<th style="width:4%"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td contenteditable="true">Infrastructure</td>
+<td contenteditable="true">AWS/cloud engineers (Snowflake, Starburst, SFTP, networking, Foglight RDS monitoring, Grafana EC2 estate)</td>
+<td contenteditable="true">~6 weeks (to 23 Oct)</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="2" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="1" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="40000"></td>
+<td contenteditable="true">S&amp;P dependency — Build compressed ~4 wks, Migrate now runs concurrently. Biggest jump from a standing start.<br>SFTP requires client involvement. Snowflake/Starburst lacks expertise within group resulting in slow delivery to date. Key is Internal (2) dedicated infra to assist with deployment and client maintenance windows stand as blockers.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr>
+<td contenteditable="true">IAM / InfoSec</td>
+<td contenteditable="true">Identity/security engineers (Okta, CyberArk deployment) + EDR/VMDR/SIEM deployment (CrowdStrike, Qualys, Google SecOps)</td>
+<td contenteditable="true">~9 weeks (to 16 Nov)</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="2" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="1" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="40000"></td>
+<td contenteditable="true">S&amp;P dependency — largest compression of any stream (Build was tracking to 30 Nov). EDR/VMDR/SIEM deployment runs late Sep to end Nov per original plan; adding internal resource pulls it in by 2 weeks (to 16 Nov). Key is Internal (2) dedicated infra to assist with deployment and client maintenance windows stand as blockers.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr>
+<td contenteditable="true">Software Migration (Dev Tools)</td>
+<td contenteditable="true">DevOps engineers (GitHub org/repo migration, TeamCity, tooling)</td>
+<td contenteditable="true">~7 weeks (to 30 Oct)</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="3" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value=""></td>
+<td contenteditable="true">S&amp;P + internal — already 31% into Migrate; also carrying the concurrent SonarQube/Mend tooling change. Internal (3) dedicated staff to assist with migrations to new platforms</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr>
+<td contenteditable="true">Service Desk</td>
+<td contenteditable="true">JSM/ITSM configuration specialists</td>
+<td contenteditable="true">~6 weeks (to 23 Oct)</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="1" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value=""></td>
+<td contenteditable="true">Same Persistent team as Infrastructure and Software Migration — check contention before assuming all three can be absorbed. A (1) dedicated service desk person to ensure speed.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr>
+<td contenteditable="true">EUC</td>
+<td contenteditable="true">Deployment / desk-side support, M365 migration, Confluence migration, Zscaler deployment</td>
+<td contenteditable="true">~8 weeks (to 6 Nov)</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal checked"><input type="checkbox" checked="" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="1" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="2" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="40000"></td>
+<td contenteditable="true">Migrate already 93% done — mostly about finishing Build and Cutover faster, not new work. Zscaler requires extra resource to get further down the line especially for Developer access to NON PROD accounts. Internal team already providing (1) person balancing BAU. Requires more Zscaler hands.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+
+<tr>
+<td contenteditable="true">Persistent (cross-stream)</td>
+<td contenteditable="true">General surge labour</td>
+<td contenteditable="true">—</td>
+<td class="src"><div class="src-group">
+<label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label>
+<label class="src-pill external checked"><input type="checkbox" checked="" onchange="toggleSrcPill(this)"> External</label>
+</div></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>
+<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value=""></td>
+<td contenteditable="true">Flagged as an at-risk source, not a lever — not counted in totals. Recent unfilled departures shows they can't be assumed to flex on demand.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr><td contenteditable="true">AWS Account Transfer expedite</td><td contenteditable="true">AWS Org experience</td><td contenteditable="true">Duration</td><td class="src"><div class="src-group"><label class="src-pill internal"><input type="checkbox" onchange="toggleSrcPill(this)"> Internal</label><label class="src-pill external checked"><input type="checkbox" onchange="toggleSrcPill(this)" checked=""> External</label></div></td><td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td><td class="qty"><input type="number" class="qty-input" min="0" value="1" oninput="updateTotals()"></td><td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="20000"></td><td contenteditable="true">PM and liaising with AWS to accelerate and own transfer of the 5 x AWS accounts</td><td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td></tr></tbody>
+<tfoot>
+<tr class="total-row">
+<td colspan="4">Total</td>
+<td class="qty" id="totalInternal">9</td>
+<td class="qty" id="totalSourcing">5</td>
+<td></td>
+<td colspan="2"></td>
+</tr>
+</tfoot>
+</table>
+<div class="toolbar">
+<button class="add-btn" onclick="addRow()">+ Add row</button>
+</div>
+<h2 class="section">Additional cost — accelerated migration with no time to cleanse</h2>
+<p class="subtitle" style="margin-bottom:14px">Compressing the timeline means some datasets move as-is rather than being cleansed/reduced first, forcing a larger SaaS tier at cutover than a cleansed lift would need.</p>
+<table class="res" id="costTable">
+<thead>
+<tr>
+<th style="width:14%">Software / Artifact store</th>
+<th style="width:11%">Current volume</th>
+<th style="width:12%">Target volume (if cleansed)</th>
+<th style="width:12%">Volume at cutover (uncleansed)</th>
+<th style="width:18%">SaaS tier / licensing impact</th>
+<th style="width:10%">Est. cost uplift</th>
+<th style="width:19%">Notes</th>
+<th style="width:4%"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td contenteditable="true">jFrog Artifactory</td>
+<td contenteditable="true">30 TB</td>
+<td contenteditable="true">6 TB</td>
+<td contenteditable="true">~30 TB</td>
+<td contenteditable="true">Forced into a larger storage/artifact tier to hold uncleansed volume</td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="60000"></td>
+<td contenteditable="true">No time to cleanse/dedupe artifacts before cutover — full volume moves as-is.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr>
+<td contenteditable="true">M365</td>
+<td contenteditable="true">22 TB</td>
+<td contenteditable="true">&lt;10 TB</td>
+<td contenteditable="true">~22 TB</td>
+<td contenteditable="true">Forced into a larger SaaS/storage subscription tier for a pure lift-and-shift</td>
+<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="110000"></td>
+<td contenteditable="true">No time to reduce mailbox/SPO volume before cutover — full volume moves as-is.</td>
+<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>
+</tr>
+<tr><td contenteditable="true">Zscaler AWS ZTGW subscription reducing effort to build our EC2 instances and policies. Year 1 only</td><td contenteditable="true">Unknown</td><td contenteditable="true">NA</td><td contenteditable="true">NA</td><td contenteditable="true">A quicker solution to get access to AWS accounts based on stretched resources. Can be reverted to a traditional EC2 instance in Year 2 on.</td><td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()" value="100000"></td><td contenteditable="true">Price still to be confirmed<br></td><td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td></tr></tbody>
+</table>
+<div class="toolbar">
+<button class="add-btn" onclick="addCostRow()">+ Add row</button>
+</div>
+<h2 class="section">Combined total uplift</h2>
+<div class="totals-summary">
+<div class="total-box">
+<div class="total-label">Manpower (extra resource)</div>
+<div class="total-value" id="totalManpowerCost">£140,000</div>
+</div>
+<div class="total-box">
+<div class="total-label">Software / data volume</div>
+<div class="total-value" id="totalSoftwareCost">£270,000</div>
+</div>
+<div class="total-box grand">
+<div class="total-label">Grand total uplift</div>
+<div class="total-value" id="totalGrandCost">£410,000</div>
+</div>
+</div>
+
+<script>
+function removeRow(btn){
+  var row = btn.closest('tr');
+  row.parentNode.removeChild(row);
+  updateTotals();
+}
+function toggleSrcPill(cb){
+  cb.parentElement.classList.toggle('checked', cb.checked);
+}
+function updateTotals(){
+  var internalTotal = 0, sourcingTotal = 0;
+  document.querySelectorAll('#resTable tbody tr').forEach(function(row){
+    var qtyInputs = row.querySelectorAll('.qty-input');
+    if(qtyInputs.length === 2){
+      internalTotal += Number(qtyInputs[0].value) || 0;
+      sourcingTotal += Number(qtyInputs[1].value) || 0;
+    }
+  });
+  document.getElementById('totalInternal').textContent = internalTotal;
+  document.getElementById('totalSourcing').textContent = sourcingTotal;
+}
+function addRow(){
+  var tbody = document.getElementById('resTable').querySelector('tbody');
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td contenteditable="true">New workstream</td>' +
+    '<td contenteditable="true">Skillset</td>' +
+    '<td contenteditable="true">Duration</td>' +
+    '<td class="src"><div class="src-group">' +
+      '<label class="src-pill internal checked"><input type="checkbox" checked onchange="toggleSrcPill(this)"> Internal</label>' +
+      '<label class="src-pill external"><input type="checkbox" onchange="toggleSrcPill(this)"> External</label>' +
+    '</div></td>' +
+    '<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>' +
+    '<td class="qty"><input type="number" class="qty-input" min="0" value="0" oninput="updateTotals()"></td>' +
+    '<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()"></td>' +
+    '<td contenteditable="true">Notes</td>' +
+    '<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>';
+  tbody.appendChild(tr);
+  tr.querySelector('td').focus();
+  updateTotals();
+}
+function addCostRow(){
+  var tbody = document.getElementById('costTable').querySelector('tbody');
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td contenteditable="true">New software/artifact store</td>' +
+    '<td contenteditable="true">Current volume</td>' +
+    '<td contenteditable="true">Target volume (if cleansed)</td>' +
+    '<td contenteditable="true">Volume at cutover (uncleansed)</td>' +
+    '<td contenteditable="true">SaaS tier / licensing impact</td>' +
+    '<td class="cost"><input type="text" class="cost-input" placeholder="TBC" oninput="updateCostTotals()"></td>' +
+    '<td contenteditable="true">Notes</td>' +
+    '<td class="actions"><button class="rm-btn" onclick="removeRow(this)" title="Remove row">✕</button></td>';
+  tbody.appendChild(tr);
+  tr.querySelector('td').focus();
+}
+function updateCostTotals(){
+  function sumTable(tableId){
+    var total = 0;
+    document.querySelectorAll('#'+tableId+' tbody .cost-input').forEach(function(input){
+      var n = parseFloat(String(input.value).replace(/[^0-9.-]/g,''));
+      if(!isNaN(n)) total += n;
+    });
+    return total;
+  }
+  var manpower = sumTable('resTable');
+  var software = sumTable('costTable');
+  var grand = manpower + software;
+  function fmt(n){ return '£' + n.toLocaleString('en-GB', {maximumFractionDigits:0}); }
+  document.getElementById('totalManpowerCost').textContent = fmt(manpower);
+  document.getElementById('totalSoftwareCost').textContent = fmt(software);
+  document.getElementById('totalGrandCost').textContent = fmt(grand);
+}
+updateTotals();
+updateCostTotals();
+
+function saveHtml(){
+  // sync live input values/checkbox states into HTML attributes so they
+  // survive serialization (contenteditable text is already live in the DOM)
+  document.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp){
+    inp.setAttribute('value', inp.value);
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+    if(cb.checked){ cb.setAttribute('checked',''); } else { cb.removeAttribute('checked'); }
+  });
+  var htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  var blob = new Blob([htmlContent], {type:'text/html'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'IT_Carveout_Before_After_Exec_View.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+
+
+
+</body></html>
